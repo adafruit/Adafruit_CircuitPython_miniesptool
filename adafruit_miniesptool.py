@@ -1,6 +1,7 @@
-import time
 import os
+import time
 import struct
+import board
 from digitalio import DigitalInOut, Direction, Pull
 
 
@@ -35,15 +36,17 @@ class miniesptool:
     FLASH_SECTOR_SIZE = 0x1000 # Flash sector size, minimum unit of erase.
     ESP_ROM_BAUD = 115200
 
-    def __init__(self, uart, gpio0_pin, reset_pin):
+    def __init__(self, uart, gpio0_pin, reset_pin, baudrate=ESP_ROM_BAUD):
         gpio0_pin.direction = Direction.OUTPUT
         reset_pin.direction = Direction.OUTPUT
         self._gpio0pin = gpio0_pin
         self._resetpin = reset_pin
         self._uart = uart
-        self._uart.baudrate = self.ESP_ROM_BAUD
+        self._uart.baudrate = baudrate
         self._debug = False
         self._efuses = [0] * 4
+        self._debug_led = DigitalInOut(board.D13)
+        self._debug_led.direction = Direction.OUTPUT
 
     @property
     def debug(self):
@@ -121,11 +124,11 @@ class miniesptool:
     def send_command(self, opcode, buffer):
         self._uart.reset_input_buffer()
 
+        self._debug_led.value = True
         checksum = 0
         if opcode == 0x03:
-            checksum = 0xef
-            for i in range(16, len(buffer)):
-                checksum ^= buffer[i]
+            checksum = self.checksum(buffer[16:])
+        self._debug_led.value = False
 
         packet = [0xC0, 0x00] # direction
         packet.append(opcode)
@@ -188,9 +191,9 @@ class miniesptool:
         register = self.check_command(ESP_READ_REG, packet)
         return struct.unpack('I', bytearray(register))[0]
 
-    def reset(self):
+    def reset(self, program_mode=False):
         print("Resetting")
-        self._gpio0pin.value = False
+        self._gpio0pin.value = not program_mode
         self._resetpin.value = False
         time.sleep(0.01)
         self._resetpin.value = True
@@ -221,6 +224,7 @@ class miniesptool:
                 self.flash_block(block, seq, timeout=2)
                 seq += 1
                 written += len(block)
+            print("Took %.2fs to write %d bytes" % (time.monotonic() - t, filesize))
     def _sync(self):
         self.send_command(0x08, SYNC_PACKET)
         result = []
@@ -233,7 +237,7 @@ class miniesptool:
         return False
 
     def sync(self):
-        self.reset()
+        self.reset(True)
 
         for _ in range(3):
             if self._sync():
