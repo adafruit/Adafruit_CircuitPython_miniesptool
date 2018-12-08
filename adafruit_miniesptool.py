@@ -45,8 +45,8 @@ class miniesptool:
         self._uart.baudrate = baudrate
         self._debug = False
         self._efuses = [0] * 4
-        self._debug_led = DigitalInOut(board.D13)
-        self._debug_led.direction = Direction.OUTPUT
+        #self._debug_led = DigitalInOut(board.D13)
+        #self._debug_led.direction = Direction.OUTPUT
 
     @property
     def debug(self):
@@ -124,11 +124,11 @@ class miniesptool:
     def send_command(self, opcode, buffer):
         self._uart.reset_input_buffer()
 
-        self._debug_led.value = True
+        #self._debug_led.value = True
         checksum = 0
         if opcode == 0x03:
             checksum = self.checksum(buffer[16:])
-        self._debug_led.value = False
+        #self._debug_led.value = False
 
         packet = [0xC0, 0x00] # direction
         packet.append(opcode)
@@ -205,14 +205,14 @@ class miniesptool:
                            self.checksum(data),
                            timeout=timeout)
 
-    def flash_file(self, filename):
+    def flash_file(self, filename, offset=0):
         filesize = os.stat(filename)[6]
         with open(filename, "rb") as f:
             print("Writing", filename, "w/filesize:", filesize)
             blocks = self.flash_begin(size=filesize, offset=0)
             seq = 0
             written = 0
-            address = 0
+            address = offset
             t = time.monotonic()
             while filesize - f.tell() > 0:
                 print('\rWriting at 0x%08x... (%d %%)' %
