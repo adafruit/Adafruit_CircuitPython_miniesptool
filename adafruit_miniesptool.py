@@ -16,6 +16,7 @@ ESP_MEM_DATA    = 0x07
 ESP_SYNC        = 0x08
 ESP_WRITE_REG   = 0x09
 ESP_READ_REG    = 0x0a
+ESP_CHECKSUM_MAGIC = 0xef
 
 FLASH_SIZES = {
     '512KB':0x00,
@@ -96,7 +97,7 @@ class miniesptool:
         else:
             return (num_sectors - head_sectors) * sector_size
 
-    def flash_begin(self, size=0, offset=0):
+    def flash_begin(self, *, size=0, offset=0):
         num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
         erase_size = self.get_erase_size(offset, size)
 
@@ -108,7 +109,7 @@ class miniesptool:
             print("Took %.2fs to erase %d flash blocks" % (time.monotonic() - t, num_blocks))
         return num_blocks
 
-    def check_command(self, opcode, buffer, timeout=0.1):
+    def check_command(self, opcode, buffer, checksum=0, timeout=0.1):
         self.send_command(opcode, buffer)
         status, data = self.get_response(opcode, timeout)
         if len(status) != 2:
@@ -195,14 +196,31 @@ class miniesptool:
         self._resetpin.value = True
         time.sleep(0.1)
 
+    def flash_block(self, data, seq, timeout=0.1):
+        self.check_command(ESP_FLASH_DATA,
+                           struct.pack('<IIII', len(data), seq, 0, 0) + data,
+                           self.checksum(data),
+                           timeout=timeout)
+
     def flash_file(self, filename):
-        size = os.stat(filename)[6]
+        filesize = os.stat(filename)[6]
         with open(filename, "rb") as f:
-            print("Writing", filename, "w/filesize:", size)
-            self.flash_begin(size, 0)
-
-
-
+            print("Writing", filename, "w/filesize:", filesize)
+            blocks = self.flash_begin(size=filesize, offset=0)
+            seq = 0
+            written = 0
+            address = 0
+            t = time.monotonic()
+            while filesize - f.tell() > 0:
+                print('\rWriting at 0x%08x... (%d %%)' %
+                      (address + seq * self.FLASH_WRITE_SIZE, 100 * (seq + 1) // blocks), end='')
+                block = f.read(self.FLASH_WRITE_SIZE)
+                # Pad the last block
+                block = block + b'\xff' * (self.FLASH_WRITE_SIZE - len(block))
+                #print(block)
+                self.flash_block(block, seq, timeout=2)
+                seq += 1
+                written += len(block)
     def _sync(self):
         self.send_command(0x08, SYNC_PACKET)
         result = []
@@ -225,7 +243,15 @@ class miniesptool:
         else:
             raise RuntimeError("Couldn't sync to ESP")
 
-    def slip_encode(self, buffer):
+    @staticmethod
+    def checksum(data, state=ESP_CHECKSUM_MAGIC):
+        """ Calculate checksum of a blob, as it is defined by the ROM """
+        for b in data:
+            state ^= b
+        return state
+
+    @staticmethod
+    def slip_encode(buffer):
         encoded = []
         for b in buffer:
             if b == 0xdb:
