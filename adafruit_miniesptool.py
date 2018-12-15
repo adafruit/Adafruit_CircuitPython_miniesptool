@@ -6,6 +6,8 @@ from digitalio import DigitalInOut, Direction, Pull
 
 
 SYNC_PACKET = b'\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU'
+ESP32_DATAREGVALUE = 0x15122500
+ESP8266_DATAREGVALUE = 0x00062000
 
 # Commands supported by ESP8266 ROM bootloader
 ESP_FLASH_BEGIN = 0x02
@@ -45,7 +47,7 @@ class miniesptool:
         self._uart.baudrate = baudrate
         self._debug = False
         self._efuses = [0] * 4
-        self._datareg = None
+        self._chipname = None
         #self._debug_led = DigitalInOut(board.D13)
         #self._debug_led.direction = Direction.OUTPUT
 
@@ -71,14 +73,17 @@ class miniesptool:
 
     @property
     def chip_name(self):
+        datareg = self.read_register(0x60000078)
         self.read_efuses()
-        if self._efuses[0] & (1 << 4) or self._efuses[2] & (1 << 16):
-            return "ESP8285"
-        else:
-            return "ESP8266EX"
+        if datareg == ESP32_DATAREGVALUE:
+            return "ESP32"
+        elif datareg == ESP8266_DATAREGVALUE:
+            if self._efuses[0] & (1 << 4) or self._efuses[2] & (1 << 16):
+                return "ESP8285"
+            else:
+                return "ESP8266EX"
 
     def read_efuses(self):
-        self._datareg = self.read_register(0x60000078)
         self._efuses[0] = self.read_register(0x3FF00050)
         self._efuses[1] = self.read_register(0x3FF00054)
         self._efuses[2] = self.read_register(0x3FF00058)
