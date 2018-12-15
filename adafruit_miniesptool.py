@@ -21,6 +21,9 @@ ESP_WRITE_REG   = 0x09
 ESP_READ_REG    = 0x0a
 ESP_CHECKSUM_MAGIC = 0xef
 
+ESP8266 = 0x8266
+ESP32 = 0x32
+
 FLASH_SIZES = {
     '512KB':0x00,
     '256KB':0x10,
@@ -47,6 +50,7 @@ class miniesptool:
         self._uart.baudrate = baudrate
         self._debug = False
         self._efuses = [0] * 4
+        self._chipfamily = None
         self._chipname = None
         #self._debug_led = DigitalInOut(board.D13)
         #self._debug_led.direction = Direction.OUTPUT
@@ -63,31 +67,57 @@ class miniesptool:
     def mac_addr(self):
         self.read_efuses()
         mac_addr = [0] * 6
-        mac_addr[0] = (self._efuses[3]>>16) & 0xff
-        mac_addr[1] = (self._efuses[3]>>8) & 0xff
-        mac_addr[2] = self._efuses[3] & 0xff
-        mac_addr[3] = (self._efuses[1]>>8) & 0xff
-        mac_addr[4] = self._efuses[1] & 0xff
-        mac_addr[5] = (self._efuses[0]>>24) & 0xff
+        if self._chipfamily == ESP8266:
+            mac_addr[0] = (self._efuses[3]>>16) & 0xff
+            mac_addr[1] = (self._efuses[3]>>8) & 0xff
+            mac_addr[2] = self._efuses[3] & 0xff
+            mac_addr[3] = (self._efuses[1]>>8) & 0xff
+            mac_addr[4] = self._efuses[1] & 0xff
+            mac_addr[5] = (self._efuses[0]>>24) & 0xff
+        if self._chipfamily == ESP32:
+            print(hex(self._efuses[2]))
+            mac_addr[0] = self._efuses[2] >> 8 & 0xFF
+            mac_addr[1] = self._efuses[2] & 0xFF
+            mac_addr[2] = self._efuses[1] >> 24 & 0xFF
+            mac_addr[3] = self._efuses[1] >> 16 & 0xFF
+            mac_addr[4] = self._efuses[1] >> 8 & 0xFF
+            mac_addr[5] = self._efuses[1] & 0xFF
         return mac_addr
 
     @property
+    def chip_type(self):
+        if not self._chipfamily:
+            datareg = self.read_register(0x60000078)
+            if datareg == ESP32_DATAREGVALUE:
+                self._chipfamily = ESP32
+            elif datareg == ESP8266_DATAREGVALUE:
+                self._chipfamily = ESP8266
+            else:
+                raise RuntimeError("Unknown Chip")
+        return self._chipfamily
+
+    @property
     def chip_name(self):
-        datareg = self.read_register(0x60000078)
+        self.chip_type
         self.read_efuses()
-        if datareg == ESP32_DATAREGVALUE:
+
+        if self.chip_type == ESP32:
             return "ESP32"
-        elif datareg == ESP8266_DATAREGVALUE:
+        elif self.chip_type == ESP8266:
             if self._efuses[0] & (1 << 4) or self._efuses[2] & (1 << 16):
                 return "ESP8285"
             else:
                 return "ESP8266EX"
 
     def read_efuses(self):
-        self._efuses[0] = self.read_register(0x3FF00050)
-        self._efuses[1] = self.read_register(0x3FF00054)
-        self._efuses[2] = self.read_register(0x3FF00058)
-        self._efuses[3] = self.read_register(0x3FF0005C)
+        if self._chipfamily == ESP8266:
+            base_addr = 0x3FF00050
+        elif self._chipfamily == ESP32:
+            base_addr = 0x6001a000
+        else:
+            raise RuntimeError("Don't know what chip this is")
+        for i in range(4):
+            self._efuses[i] = self.read_register(base_addr + 4*i)
 
     def get_erase_size(self, offset, size):
         """ Calculate an erase size given a specific size in bytes.
