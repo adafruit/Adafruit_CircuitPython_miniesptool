@@ -45,6 +45,7 @@ class miniesptool:
         self._uart.baudrate = baudrate
         self._debug = False
         self._efuses = [0] * 4
+        self._datareg = None
         #self._debug_led = DigitalInOut(board.D13)
         #self._debug_led.direction = Direction.OUTPUT
 
@@ -77,6 +78,7 @@ class miniesptool:
             return "ESP8266EX"
 
     def read_efuses(self):
+        self._datareg = self.read_register(0x60000078)
         self._efuses[0] = self.read_register(0x3FF00050)
         self._efuses[1] = self.read_register(0x3FF00054)
         self._efuses[2] = self.read_register(0x3FF00058)
@@ -115,8 +117,8 @@ class miniesptool:
     def check_command(self, opcode, buffer, checksum=0, timeout=0.1):
         self.send_command(opcode, buffer)
         status, data = self.get_response(opcode, timeout)
-        if len(status) != 2:
-            raise RuntimeError("Didn't get 2 status bytes")
+        if (len(status) != 2) and (len(status) != 4):
+            raise RuntimeError("Didn't get 2 or 4 status bytes")
         if status[0] != 0:
             raise RuntimeError("Command failure error code 0x%02x" % status[1])
         return data
@@ -187,6 +189,8 @@ class miniesptool:
         return (response, register)
 
     def read_register(self, reg):
+        if self._debug:
+            print("Reading register 0x%08x" % reg)
         packet = struct.pack('I', reg)
         register = self.check_command(ESP_READ_REG, packet)
         return struct.unpack('I', bytearray(register))[0]
@@ -195,9 +199,9 @@ class miniesptool:
         print("Resetting")
         self._gpio0pin.value = not program_mode
         self._resetpin.value = False
-        time.sleep(0.01)
-        self._resetpin.value = True
         time.sleep(0.1)
+        self._resetpin.value = True
+        time.sleep(0.2)
 
     def flash_block(self, data, seq, timeout=0.1):
         self.check_command(ESP_FLASH_DATA,
