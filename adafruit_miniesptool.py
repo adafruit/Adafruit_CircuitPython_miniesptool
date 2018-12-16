@@ -1,9 +1,63 @@
+# The MIT License (MIT)
+#
+# Copyright (c) 2018 ladyada for Adafruit Industries
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+"""
+`adafruit_miniesptool`
+====================================================
+
+ROM loader for ESP chips, works with ESP8266 or ESP32.
+This is a 'no-stub' loader, so you can't read MD5 or firmware back on ESP8266.
+
+See this document for protocol we're implementing: 
+https://github.com/espressif/esptool/wiki/Serial-Protocol
+
+See this for the 'original' code we're miniaturizing: 
+https://github.com/espressif/esptool/blob/master/esptool.py
+
+There's a very basic Arduino ROM loader here for ESP32:
+https://github.com/arduino-libraries/WiFiNINA/tree/master/examples/Tools/FirmwareUpdater
+
+* Author(s): ladyada
+
+Implementation Notes
+--------------------
+
+**Hardware:**
+
+**Software and Dependencies:**
+
+* Adafruit CircuitPython firmware for the supported boards:
+  https://github.com/adafruit/circuitpython/releases
+
+
+"""
+
 import os
 import time
 import struct
 import board
 from digitalio import DigitalInOut, Direction, Pull
 
+__version__ = "0.0.0-auto.0"
+__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_miniesptool.git"
 
 SYNC_PACKET = b'\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU'
 ESP32_DATAREGVALUE = 0x15122500
