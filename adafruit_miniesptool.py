@@ -26,10 +26,10 @@
 ROM loader for ESP chips, works with ESP8266 or ESP32.
 This is a 'no-stub' loader, so you can't read MD5 or firmware back on ESP8266.
 
-See this document for protocol we're implementing: 
+See this document for protocol we're implementing:
 https://github.com/espressif/esptool/wiki/Serial-Protocol
 
-See this for the 'original' code we're miniaturizing: 
+See this for the 'original' code we're miniaturizing:
 https://github.com/espressif/esptool/blob/master/esptool.py
 
 There's a very basic Arduino ROM loader here for ESP32:
@@ -53,8 +53,7 @@ Implementation Notes
 import os
 import time
 import struct
-import board
-from digitalio import DigitalInOut, Direction, Pull
+from digitalio import Direction
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_miniesptool.git"
@@ -64,23 +63,25 @@ ESP32_DATAREGVALUE = 0x15122500
 ESP8266_DATAREGVALUE = 0x00062000
 
 # Commands supported by ESP8266 ROM bootloader
-ESP_FLASH_BEGIN = 0x02
-ESP_FLASH_DATA  = 0x03
-ESP_FLASH_END   = 0x04
-ESP_MEM_BEGIN   = 0x05
-ESP_MEM_END     = 0x06
-ESP_MEM_DATA    = 0x07
-ESP_SYNC        = 0x08
-ESP_WRITE_REG   = 0x09
-ESP_READ_REG    = 0x0a
+# pylint: disable=bad-whitespace
+ESP_FLASH_BEGIN     = 0x02
+ESP_FLASH_DATA      = 0x03
+ESP_FLASH_END       = 0x04
+ESP_MEM_BEGIN       = 0x05
+ESP_MEM_END         = 0x06
+ESP_MEM_DATA        = 0x07
+ESP_SYNC            = 0x08
+ESP_WRITE_REG       = 0x09
+ESP_READ_REG        = 0x0a
 ESP_SPI_SET_PARAMS  = 0x0b
-ESP_SPI_ATTACH  = 0x0d
+ESP_SPI_ATTACH      = 0x0d
 ESP_CHANGE_BAUDRATE = 0x0f
 ESP_SPI_FLASH_MD5   = 0x13
-ESP_CHECKSUM_MAGIC = 0xef
+ESP_CHECKSUM_MAGIC  = 0xef
 
-ESP8266 = 0x8266
-ESP32 = 0x32
+ESP8266             = 0x8266
+ESP32               = 0x32
+# pylint: enable=bad-whitespace
 
 FLASH_SIZES = {
     '512KB':0x00,
@@ -94,12 +95,18 @@ FLASH_SIZES = {
     '16MB':0x90,
 }
 
-class miniesptool:
+class miniesptool: # pylint: disable=invalid-name
+    """A miniature version of esptool, a programming command line tool for
+    ESP8266 and ESP32 chips. This version is minimized to work on CircuitPython
+    boards, so you can burn ESP firmware direct from the CPy disk drive. Handy
+    when you have an ESP module wired to a board and need to upload new AT
+    firmware. Its slow! Expect a few minutes when programming 1 MB flash."""
     FLASH_WRITE_SIZE = 0x400
     FLASH_SECTOR_SIZE = 0x1000 # Flash sector size, minimum unit of erase.
     ESP_ROM_BAUD = 115200
 
-    def __init__(self, uart, gpio0_pin, reset_pin, flashsize, baudrate=ESP_ROM_BAUD):
+    def __init__(self, uart, gpio0_pin,  # pylint: disable=too-many-arguments
+                 reset_pin, flashsize, baudrate=ESP_ROM_BAUD):
         gpio0_pin.direction = Direction.OUTPUT
         reset_pin.direction = Direction.OUTPUT
         self._gpio0pin = gpio0_pin
@@ -116,14 +123,18 @@ class miniesptool:
 
     @property
     def debug(self):
+        """Print out all sent/received UART data plus some debugging output"""
         return self._debug
 
     @debug.setter
-    def debug(self, f):
-        self._debug = f
+    def debug(self, flag):
+        self._debug = flag
 
     @property
     def baudrate(self):
+        """The baudrate of the UART connection. On ESP8266 we cannot change
+        this once we've started syncing. On ESP32 we must start at 115200 and
+        then manually change to higher speeds if desired"""
         return self._uart.baudrate
 
     @baudrate.setter
@@ -138,6 +149,9 @@ class miniesptool:
         self.check_command(ESP_CHANGE_BAUDRATE, buffer)
 
     def md5(self, offset, size):
+        """On ESP32 we can ask the ROM bootloader to calculate an MD5 on the
+        SPI flash memory, from a location over a size in bytes. Returns a
+        string with the MD5 in lowercase"""
         if self._chipfamily == ESP8266:
             raise NotImplementedError("MD5 only supported on ESP32")
         self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
@@ -147,7 +161,8 @@ class miniesptool:
 
     @property
     def mac_addr(self):
-        self.read_efuses()
+        """The MAC address burned into the OTP memory of the ESP chip"""
+        self._read_efuses()
         mac_addr = [0] * 6
         if self._chipfamily == ESP8266:
             mac_addr[0] = (self._efuses[3]>>16) & 0xff
@@ -167,6 +182,7 @@ class miniesptool:
 
     @property
     def chip_type(self):
+        """ESP32 or ESP8266 based on which chip type we're talking to"""
         if not self._chipfamily:
             datareg = self.read_register(0x60000078)
             if datareg == ESP32_DATAREGVALUE:
@@ -179,18 +195,21 @@ class miniesptool:
 
     @property
     def chip_name(self):
-        self.chip_type
-        self.read_efuses()
+        """The specific name of the chip, e.g. ESP8266EX, to the best
+        of our ability to determine without a stub bootloader."""
+        self.chip_type        # pylint: disable=pointless-statement
+        self._read_efuses()
 
         if self.chip_type == ESP32:
             return "ESP32"
         elif self.chip_type == ESP8266:
             if self._efuses[0] & (1 << 4) or self._efuses[2] & (1 << 16):
                 return "ESP8285"
-            else:
-                return "ESP8266EX"
+            return "ESP8266EX"
+        return None
 
-    def read_efuses(self):
+    def _read_efuses(self):
+        """Read the OTP data for this chip and store into _efuses array"""
         if self._chipfamily == ESP8266:
             base_addr = 0x3FF00050
         elif self._chipfamily == ESP32:
@@ -201,8 +220,8 @@ class miniesptool:
             self._efuses[i] = self.read_register(base_addr + 4*i)
 
     def get_erase_size(self, offset, size):
-        """ Calculate an erase size given a specific size in bytes.
-        Provides a workaround for the bootloader erase bug."""
+        """Calculate an erase size given a specific size in bytes.
+        Provides a workaround for the bootloader erase bug on ESP8266."""
 
         sectors_per_block = 16
         sector_size = self.FLASH_SECTOR_SIZE
@@ -215,13 +234,16 @@ class miniesptool:
 
         if num_sectors < 2 * head_sectors:
             return (num_sectors + 1) // 2 * sector_size
-        else:
-            return (num_sectors - head_sectors) * sector_size
+        return (num_sectors - head_sectors) * sector_size
 
     def flash_begin(self, *, size=0, offset=0):
+        """Prepare for flashing by attaching SPI chip and erasing the
+        number of blocks requred."""
         if self._chipfamily == ESP32:
             self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
-            buffer = struct.pack('<IIIIII', 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF)
+            # We are harcoded for 4MB flash on ESP32
+            buffer = struct.pack('<IIIIII', 0, self._flashsize,
+                                 0x10000, 4096, 256, 0xFFFF)
             self.check_command(ESP_SPI_SET_PARAMS, buffer)
 
         num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
@@ -230,16 +252,22 @@ class miniesptool:
         else:
             erase_size = size
         timeout = 5
-        t = time.monotonic()
-        buffer = struct.pack('<IIII', erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
-        print("***erase size %d, num_blocks %d, size %d, offset 0x%04x" %  (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset))
+        stamp = time.monotonic()
+        buffer = struct.pack('<IIII', erase_size, num_blocks,
+                             self.FLASH_WRITE_SIZE, offset)
+        print("Erase size %d, num_blocks %d, size %d, offset 0x%04x" %
+              (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset))
 
         self.check_command(ESP_FLASH_BEGIN, buffer, timeout=timeout)
         if size != 0:
-            print("Took %.2fs to erase %d flash blocks" % (time.monotonic() - t, num_blocks))
+            print("Took %.2fs to erase %d flash blocks" %
+                  (time.monotonic()-stamp, num_blocks))
         return num_blocks
 
-    def check_command(self, opcode, buffer, checksum=0, timeout=0.1):
+    def check_command(self, opcode, buffer, checksum=0, timeout=0.1): # pylint: disable=unused-argument
+        """Send a command packet, check that the command succeeded and
+        return a tuple with the value and data.
+        See the ESP Serial Protocol for more details on what value/data are"""
         self.send_command(opcode, buffer)
         value, data = self.get_response(opcode, timeout)
         if self._chipfamily == ESP8266:
@@ -258,6 +286,8 @@ class miniesptool:
         return (value, data)
 
     def send_command(self, opcode, buffer):
+        """Send a slip-encoded, checksummed command over the UART,
+        does not check response"""
         self._uart.reset_input_buffer()
 
         #self._debug_led.value = True
@@ -277,7 +307,10 @@ class miniesptool:
             print("Writing:", bytearray(packet))
         self._uart.write(bytearray(packet))
 
-    def get_response(self, opcode, timeout=0.1):
+    def get_response(self, opcode, timeout=0.1): # pylint: disable=too-many-branches
+        """Read response data and decodes the slip packet, then parses
+        out the value/data and returns as a tuple of (value, data) where
+        each is a list of bytes"""
         reply = []
 
         stamp = time.monotonic()
@@ -285,7 +318,7 @@ class miniesptool:
         escaped_byte = False
         while (time.monotonic() - stamp) < timeout:
             if self._uart.in_waiting > 0:
-                c = self._uart.read(1)
+                c = self._uart.read(1) # pylint: disable=invalid-name
                 if c == b'\xDB':
                     escaped_byte = True
                 elif escaped_byte:
@@ -298,13 +331,13 @@ class miniesptool:
                     escaped_byte = False
                 else:
                     reply += c
-            if len(reply) > 0 and reply[0] != 0xc0:
+            if reply and reply[0] != 0xc0:
                 # packets must start with 0xC0
-                del(reply[0])
+                del reply[0]
             if len(reply) > 1 and reply[1] != 0x01:
-                del(reply[0])
+                del reply[0]
             if len(reply) > 2 and reply[2] != opcode:
-                del(reply[0])
+                del reply[0]
             if len(reply) > 4:
                 # get the length
                 packet_length = reply[3] + (reply[4] << 8)
@@ -323,6 +356,7 @@ class miniesptool:
         return (value, data)
 
     def read_register(self, reg):
+        """Read a register within the ESP chip RAM, returns a 4-element list"""
         if self._debug:
             print("Reading register 0x%08x" % reg)
         packet = struct.pack('I', reg)
@@ -330,6 +364,7 @@ class miniesptool:
         return struct.unpack('I', bytearray(register))[0]
 
     def reset(self, program_mode=False):
+        """Perform a hard-reset into ROM bootloader using gpio0 and reset"""
         print("Resetting")
         self._gpio0pin.value = not program_mode
         self._resetpin.value = False
@@ -338,31 +373,37 @@ class miniesptool:
         time.sleep(0.2)
 
     def flash_block(self, data, seq, timeout=0.1):
+        """Send one block of data to program into SPI Flash memory"""
         self.check_command(ESP_FLASH_DATA,
                            struct.pack('<IIII', len(data), seq, 0, 0) + data,
                            self.checksum(data),
                            timeout=timeout)
 
     def flash_file(self, filename, offset=0, md5=None):
+        """Program a full, uncompressed binary file into SPI Flash at
+        a given offset. If an ESP32 and md5 string is passed in, will also
+        verify memory. ESP8266 does not have checksum memory verification in
+        ROM"""
         filesize = os.stat(filename)[6]
-        with open(filename, "rb") as f:
+        with open(filename, "rb") as file:
             print("\nWriting", filename, "w/filesize:", filesize)
             blocks = self.flash_begin(size=filesize, offset=offset)
             seq = 0
             written = 0
             address = offset
-            t = time.monotonic()
-            while filesize - f.tell() > 0:
+            stamp = time.monotonic()
+            while filesize - file.tell() > 0:
                 print('\rWriting at 0x%08x... (%d %%)' %
                       (address + seq * self.FLASH_WRITE_SIZE, 100 * (seq + 1) // blocks), end='')
-                block = f.read(self.FLASH_WRITE_SIZE)
+                block = file.read(self.FLASH_WRITE_SIZE)
                 # Pad the last block
                 block = block + b'\xff' * (self.FLASH_WRITE_SIZE - len(block))
                 #print(block)
                 self.flash_block(block, seq, timeout=2)
                 seq += 1
                 written += len(block)
-            print("Took %.2fs to write %d bytes" % (time.monotonic() - t, filesize))
+            print("Took %.2fs to write %d bytes" %
+                  (time.monotonic()-stamp, filesize))
             if md5:
                 print("Verifying MD5sum ", md5)
                 calcd = self.md5(offset, filesize)
@@ -370,10 +411,11 @@ class miniesptool:
                     raise RuntimeError("MD5 mismatch, calculated:", calcd)
 
     def _sync(self):
+        """Perform a soft-sync using AT sync packets, does not perform
+        any hardware resetting"""
         self.send_command(0x08, SYNC_PACKET)
-        result = []
         for _ in range(8):
-            value, data = self.get_response(0x08, 0.1)
+            reply, data = self.get_response(0x08, 0.1) # pylint: disable=unused-variable
             if not data:
                 continue
             if len(data) > 1 and data[0] == 0 and data[1] == 0:
@@ -381,6 +423,8 @@ class miniesptool:
         return False
 
     def sync(self):
+        """Put into ROM bootload mode & attempt to synchronize with the
+        ESP ROM bootloader, we will retry a few times"""
         self.reset(True)
 
         for _ in range(3):
@@ -388,8 +432,8 @@ class miniesptool:
                 time.sleep(0.1)
                 return True
             time.sleep(0.1)
-        else:
-            raise RuntimeError("Couldn't sync to ESP")
+
+        raise RuntimeError("Couldn't sync to ESP")
 
     @staticmethod
     def checksum(data, state=ESP_CHECKSUM_MAGIC):
@@ -400,6 +444,8 @@ class miniesptool:
 
     @staticmethod
     def slip_encode(buffer):
+        """Take a bytearray buffer and return back a new bytearray where
+        0xdb is replaced with 0xdb 0xdd and 0xc0 is replaced with 0xdb 0xdc"""
         encoded = []
         for b in buffer:
             if b == 0xdb:
