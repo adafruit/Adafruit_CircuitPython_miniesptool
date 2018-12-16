@@ -165,7 +165,7 @@ class miniesptool: # pylint: disable=invalid-name
         mac_addr = [0] * 6
         mac0, mac1, mac2, mac3 = self._efuses
         if self._chipfamily == ESP8266:
-            if (mac3 != 0):
+            if mac3 != 0:
                 oui = ((mac3 >> 16) & 0xff, (mac3 >> 8) & 0xff, mac3 & 0xff)
             elif ((mac1 >> 16) & 0xff) == 0:
                 oui = (0x18, 0xfe, 0x34)
