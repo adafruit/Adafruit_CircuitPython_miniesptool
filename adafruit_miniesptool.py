@@ -106,7 +106,7 @@ class miniesptool: # pylint: disable=invalid-name
     ESP_ROM_BAUD = 115200
 
     def __init__(self, uart, gpio0_pin,  # pylint: disable=too-many-arguments
-                 reset_pin, flashsize, baudrate=ESP_ROM_BAUD):
+                 reset_pin, *, flashsize, baudrate=ESP_ROM_BAUD):
         gpio0_pin.direction = Direction.OUTPUT
         reset_pin.direction = Direction.OUTPUT
         self._gpio0pin = gpio0_pin
@@ -162,15 +162,28 @@ class miniesptool: # pylint: disable=invalid-name
     @property
     def mac_addr(self):
         """The MAC address burned into the OTP memory of the ESP chip"""
-        self._read_efuses()
         mac_addr = [0] * 6
         if self._chipfamily == ESP8266:
-            mac_addr[0] = (self._efuses[3]>>16) & 0xff
-            mac_addr[1] = (self._efuses[3]>>8) & 0xff
-            mac_addr[2] = self._efuses[3] & 0xff
-            mac_addr[3] = (self._efuses[1]>>8) & 0xff
-            mac_addr[4] = self._efuses[1] & 0xff
-            mac_addr[5] = (self._efuses[0]>>24) & 0xff
+            print([hex(i) for i in self._efuses])
+            mac0 = self._efuses[0]
+            mac1 = self._efuses[1]
+            mac3 = self._efuses[3]
+
+            if (mac3 != 0):
+                oui = ((mac3 >> 16) & 0xff, (mac3 >> 8) & 0xff, mac3 & 0xff)
+            elif ((mac1 >> 16) & 0xff) == 0:
+                oui = (0x18, 0xfe, 0x34)
+            elif ((mac1 >> 16) & 0xff) == 1:
+                oui = (0xac, 0xd0, 0x74)
+            else:
+                raise RuntimeError("Couldnt determine OUI")
+
+            mac_addr[0] = oui[0]
+            mac_addr[1] = oui[1]
+            mac_addr[2] = oui[2]
+            mac_addr[3] = (mac1>>8) & 0xff
+            mac_addr[4] = mac1 & 0xff
+            mac_addr[5] = (mac0>>24) & 0xff
         if self._chipfamily == ESP32:
             mac_addr[0] = self._efuses[2] >> 8 & 0xFF
             mac_addr[1] = self._efuses[2] & 0xFF
@@ -272,8 +285,11 @@ class miniesptool: # pylint: disable=invalid-name
         value, data = self.get_response(opcode, timeout)
         if self._chipfamily == ESP8266:
             status_len = 2
-        else:
+        elif self._chipfamily == ESP32:
             status_len = 4
+        else:
+            if len(data) in (2, 4):
+                status_len = len(data)
         if len(data) < status_len:
             raise RuntimeError("Didn't get enough status bytes")
         status = data[-status_len:]
