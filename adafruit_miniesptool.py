@@ -163,12 +163,8 @@ class miniesptool: # pylint: disable=invalid-name
     def mac_addr(self):
         """The MAC address burned into the OTP memory of the ESP chip"""
         mac_addr = [0] * 6
+        mac0, mac1, mac2, mac3 = self._efuses
         if self._chipfamily == ESP8266:
-            print([hex(i) for i in self._efuses])
-            mac0 = self._efuses[0]
-            mac1 = self._efuses[1]
-            mac3 = self._efuses[3]
-
             if (mac3 != 0):
                 oui = ((mac3 >> 16) & 0xff, (mac3 >> 8) & 0xff, mac3 & 0xff)
             elif ((mac1 >> 16) & 0xff) == 0:
@@ -185,12 +181,12 @@ class miniesptool: # pylint: disable=invalid-name
             mac_addr[4] = mac1 & 0xff
             mac_addr[5] = (mac0>>24) & 0xff
         if self._chipfamily == ESP32:
-            mac_addr[0] = self._efuses[2] >> 8 & 0xFF
-            mac_addr[1] = self._efuses[2] & 0xFF
-            mac_addr[2] = self._efuses[1] >> 24 & 0xFF
-            mac_addr[3] = self._efuses[1] >> 16 & 0xFF
-            mac_addr[4] = self._efuses[1] >> 8 & 0xFF
-            mac_addr[5] = self._efuses[1] & 0xFF
+            mac_addr[0] = mac2 >> 8 & 0xFF
+            mac_addr[1] = mac2 & 0xFF
+            mac_addr[2] = mac1 >> 24 & 0xFF
+            mac_addr[3] = mac1 >> 16 & 0xFF
+            mac_addr[4] = mac1 >> 8 & 0xFF
+            mac_addr[5] = mac1 & 0xFF
         return mac_addr
 
     @property
