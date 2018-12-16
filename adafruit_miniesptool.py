@@ -19,6 +19,10 @@ ESP_MEM_DATA    = 0x07
 ESP_SYNC        = 0x08
 ESP_WRITE_REG   = 0x09
 ESP_READ_REG    = 0x0a
+ESP_SPI_SET_PARAMS  = 0x0b
+ESP_SPI_ATTACH  = 0x0d
+ESP_CHANGE_BAUDRATE = 0x0f
+ESP_SPI_FLASH_MD5   = 0x13
 ESP_CHECKSUM_MAGIC = 0xef
 
 ESP8266 = 0x8266
@@ -41,7 +45,7 @@ class miniesptool:
     FLASH_SECTOR_SIZE = 0x1000 # Flash sector size, minimum unit of erase.
     ESP_ROM_BAUD = 115200
 
-    def __init__(self, uart, gpio0_pin, reset_pin, baudrate=ESP_ROM_BAUD):
+    def __init__(self, uart, gpio0_pin, reset_pin, flashsize, baudrate=ESP_ROM_BAUD):
         gpio0_pin.direction = Direction.OUTPUT
         reset_pin.direction = Direction.OUTPUT
         self._gpio0pin = gpio0_pin
@@ -52,6 +56,7 @@ class miniesptool:
         self._efuses = [0] * 4
         self._chipfamily = None
         self._chipname = None
+        self._flashsize = flashsize
         #self._debug_led = DigitalInOut(board.D13)
         #self._debug_led.direction = Direction.OUTPUT
 
@@ -62,6 +67,29 @@ class miniesptool:
     @debug.setter
     def debug(self, f):
         self._debug = f
+
+    @property
+    def baudrate(self):
+        return self._uart.baudrate
+
+    @baudrate.setter
+    def baudrate(self, baud):
+        if self._chipfamily == ESP8266:
+            raise NotImplementedError("Baud rate can only change on ESP32")
+        buffer = struct.pack('<II', baud, 0)
+        self.check_command(ESP_CHANGE_BAUDRATE, buffer)
+        self._uart.baudrate = baud
+        time.sleep(0.05)
+        self._uart.reset_input_buffer()
+        self.check_command(ESP_CHANGE_BAUDRATE, buffer)
+
+    def md5(self, offset, size):
+        if self._chipfamily == ESP8266:
+            raise NotImplementedError("MD5 only supported on ESP32")
+        self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
+        buffer = struct.pack('<IIII', offset, size, 0, 0)
+        md5 = self.check_command(ESP_SPI_FLASH_MD5, buffer, timeout=2)[1]
+        return ''.join([chr(i) for i in md5])
 
     @property
     def mac_addr(self):
@@ -75,7 +103,6 @@ class miniesptool:
             mac_addr[4] = self._efuses[1] & 0xff
             mac_addr[5] = (self._efuses[0]>>24) & 0xff
         if self._chipfamily == ESP32:
-            print(hex(self._efuses[2]))
             mac_addr[0] = self._efuses[2] >> 8 & 0xFF
             mac_addr[1] = self._efuses[2] & 0xFF
             mac_addr[2] = self._efuses[1] >> 24 & 0xFF
@@ -138,12 +165,21 @@ class miniesptool:
             return (num_sectors - head_sectors) * sector_size
 
     def flash_begin(self, *, size=0, offset=0):
-        num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
-        erase_size = self.get_erase_size(offset, size)
+        if self._chipfamily == ESP32:
+            self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
+            buffer = struct.pack('<IIIIII', 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF)
+            self.check_command(ESP_SPI_SET_PARAMS, buffer)
 
+        num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
+        if self._chipfamily == ESP8266:
+            erase_size = self.get_erase_size(offset, size)
+        else:
+            erase_size = size
         timeout = 5
         t = time.monotonic()
         buffer = struct.pack('<IIII', erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
+        print("***erase size %d, num_blocks %d, size %d, offset 0x%04x" %  (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset))
+
         self.check_command(ESP_FLASH_BEGIN, buffer, timeout=timeout)
         if size != 0:
             print("Took %.2fs to erase %d flash blocks" % (time.monotonic() - t, num_blocks))
@@ -151,12 +187,21 @@ class miniesptool:
 
     def check_command(self, opcode, buffer, checksum=0, timeout=0.1):
         self.send_command(opcode, buffer)
-        status, data = self.get_response(opcode, timeout)
-        if (len(status) != 2) and (len(status) != 4):
-            raise RuntimeError("Didn't get 2 or 4 status bytes")
+        value, data = self.get_response(opcode, timeout)
+        if self._chipfamily == ESP8266:
+            status_len = 2
+        else:
+            status_len = 4
+        if len(data) < status_len:
+            raise RuntimeError("Didn't get enough status bytes")
+        status = data[-status_len:]
+        data = data[:-status_len]
+        #print("status", status)
+        #print("value", value)
+        #print("data", data)
         if status[0] != 0:
             raise RuntimeError("Command failure error code 0x%02x" % status[1])
-        return data
+        return (value, data)
 
     def send_command(self, opcode, buffer):
         self._uart.reset_input_buffer()
@@ -216,18 +261,18 @@ class miniesptool:
         if self._debug:
             print("Packet:", [hex(i) for i in reply])
             print("Reading:", bytearray(reply))
-        register = reply[5:9]
-        response = reply[9:-1]
+        value = reply[5:9]
+        data = reply[9:-1]
         if self._debug:
-            print("Response:", [hex(i) for i in response],
-                  "Register:", [hex(i) for i in register])
-        return (response, register)
+            print("value:", [hex(i) for i in value],
+                  "data:", [hex(i) for i in data])
+        return (value, data)
 
     def read_register(self, reg):
         if self._debug:
             print("Reading register 0x%08x" % reg)
         packet = struct.pack('I', reg)
-        register = self.check_command(ESP_READ_REG, packet)
+        register = self.check_command(ESP_READ_REG, packet)[0]
         return struct.unpack('I', bytearray(register))[0]
 
     def reset(self, program_mode=False):
@@ -244,11 +289,11 @@ class miniesptool:
                            self.checksum(data),
                            timeout=timeout)
 
-    def flash_file(self, filename, offset=0):
+    def flash_file(self, filename, offset=0, md5=None):
         filesize = os.stat(filename)[6]
         with open(filename, "rb") as f:
-            print("Writing", filename, "w/filesize:", filesize)
-            blocks = self.flash_begin(size=filesize, offset=0)
+            print("\nWriting", filename, "w/filesize:", filesize)
+            blocks = self.flash_begin(size=filesize, offset=offset)
             seq = 0
             written = 0
             address = offset
@@ -264,14 +309,20 @@ class miniesptool:
                 seq += 1
                 written += len(block)
             print("Took %.2fs to write %d bytes" % (time.monotonic() - t, filesize))
+            if md5:
+                print("Verifying MD5sum ", md5)
+                calcd = self.md5(offset, filesize)
+                if md5 != calcd:
+                    raise RuntimeError("MD5 mismatch, calculated:", calcd)
+
     def _sync(self):
         self.send_command(0x08, SYNC_PACKET)
         result = []
         for _ in range(8):
-            reply, register = self.get_response(0x08, 0.1)
-            if not reply:
+            value, data = self.get_response(0x08, 0.1)
+            if not data:
                 continue
-            if len(reply) > 1 and reply[0] == 0 and reply[1] == 0:
+            if len(data) > 1 and data[0] == 0 and data[1] == 0:
                 return True
         return False
 
