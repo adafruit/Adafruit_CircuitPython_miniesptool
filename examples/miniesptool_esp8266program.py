@@ -2,7 +2,7 @@ import time
 import board
 import busio
 from digitalio import DigitalInOut
-from Adafruit_CircuitPython_miniesptool import adafruit_miniesptool
+import adafruit_miniesptool
 
 print("ESP8266 mini prog")
 
