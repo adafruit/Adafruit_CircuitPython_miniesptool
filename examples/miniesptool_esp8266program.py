@@ -2,7 +2,7 @@ import time
 import board
 import busio
 from digitalio import DigitalInOut
-from Adafruit_CircuitPython_miniesptool import adafruit_miniesptool
+import adafruit_miniesptool
 
 print("ESP8266 mini prog")
 
@@ -19,6 +19,6 @@ esptool.sync()
 print("Synced")
 print(esptool.chip_name)
 print("MAC ADDR: ", [hex(i) for i in esptool.mac_addr])
-esptool.flash_file("AT firmware 1.6.2.0.bin")
+esptool.flash_file("AT_firmware_1.6.2.0.bin")
 esptool.reset()
 time.sleep(0.5)
