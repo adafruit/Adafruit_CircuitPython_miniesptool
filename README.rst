@@ -9,17 +9,17 @@ Introduction
     :target: https://discord.gg/nBQh6qu
     :alt: Discord
 
-.. image:: https://travis-ci.org/adafruit/Adafruit_CircuitPython_miniesptool.svg?branch=master
-    :target: https://travis-ci.org/adafruit/Adafruit_CircuitPython_miniesptool
+.. image:: https://travis-ci.com/adafruit/Adafruit_CircuitPython_miniesptool.svg?branch=master
+    :target: https://travis-ci.com/adafruit/Adafruit_CircuitPython_miniesptool
     :alt: Build Status
 
 ROM loader for ESP chips, works with ESP8266 or ESP32.
 This is a 'no-stub' loader, so you can't read MD5 or firmware back on ESP8266.
 
-See this document for protocol we're implementing: 
+See this document for protocol we're implementing:
 https://github.com/espressif/esptool/wiki/Serial-Protocol
 
-See this for the 'original' code we're miniaturizing: 
+See this for the 'original' code we're miniaturizing:
 https://github.com/espressif/esptool/blob/master/esptool.py
 
 There's a very basic Arduino ROM loader here for ESP32:
