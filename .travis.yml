@@ -1,33 +1,32 @@
-# This is a common .travis.yml for generating library release zip files for
-# CircuitPython library releases using circuitpython-build-tools.
-# See https://github.com/adafruit/circuitpython-build-tools for detailed setup
-# instructions.
-
 dist: xenial
 language: python
 python:
-    - "3.6"
-
+- '3.6'
 cache:
-    pip: true
-
+  pip: true
 deploy:
-  provider: releases
-  api_key: $GITHUB_TOKEN
+- provider: releases
+  api_key: "$GITHUB_TOKEN"
   file_glob: true
-  file: $TRAVIS_BUILD_DIR/bundles/*
+  file: "$TRAVIS_BUILD_DIR/bundles/*"
   skip_cleanup: true
   overwrite: true
   on:
     tags: true
-
+- provider: pypi
+  user: adafruit-travis
+  on:
+    tags: true
+  password:
+    secure: njO2ScrtcAnC7m2HgrrYE5hmdZLHFtUhnDgArO4vuPst7JB/zj7OsfmNH8477uCBrl77IvjcBVz0xOfSGjQnLNveC1bfUz9qjyOhXwdqo2SHADBmtf4SPVtv7YF1eU+BFuczj1e9pJamhjwUG+kgSq3OIxGYBqKrxtc8OCtCgxLXlxannlqdXk4FEvV63i7MEf+49i3rHSCvp5eP5L5QwAKRfikzZQQS9nexcuCQ/YEIbMmm0vzKAamXt/0J9o6OEFJILFw3uaTWEu3jJpFNY1YoCkdv1A/jnRdt5bYzuLFR2COFnkZrH3zR5a0OcYqDGOF4xoBkggMV+2HeoaV14Q1S2N68z86SetSZkYIl01I6Ffmd8GNvCb5/JKLxXo7mEL+waSUeD5xWzXwiV/BcvBWDF9rzATLjU9ISuUfOhZ8oXDvoNN6bnkImy7A7we9dt/cCg0f9WhTTBDT5xACGrsq3o3hCmblSeIBQuo8SLqtv+HBQrEuW+NsaKxnWYUEvmMTWXV7VutSD9uPUDkPz6LIVQDaRh0OAtXXHGJDqG5WCxoVZrHSLwcZtufb5Kgh5JXV9J16p9BBpRzQtdl4WPYqgj92Ui2p/fWCwBAEfK18RiigaGwqZDzkpS2C+ri0rdzSVzjMoYfg8LyqF+k1QJKY5E9ZilvrvS/q0JInA9A8=
 install:
-  - pip install -r requirements.txt
-  - pip install circuitpython-build-tools Sphinx sphinx-rtd-theme
-  - pip install --force-reinstall pylint==1.9.2
-
+- pip install -r requirements.txt
+- pip install circuitpython-build-tools Sphinx sphinx-rtd-theme
+- pip install --force-reinstall pylint==1.9.2
 script:
-  - pylint adafruit_miniesptool.py
-  - ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace examples/*.py)
-  - circuitpython-build-bundles --filename_prefix adafruit-circuitpython-miniesptool --library_location .
-  - cd docs && sphinx-build -E -W -b html . _build/html && cd ..
+- pylint adafruit_miniesptool.py
+- ([[ ! -d "examples" ]] || pylint --disable=missing-docstring,invalid-name,bad-whitespace
+  examples/*.py)
+- circuitpython-build-bundles --filename_prefix adafruit-circuitpython-miniesptool
+  --library_location .
+- cd docs && sphinx-build -E -W -b html . _build/html && cd ..
