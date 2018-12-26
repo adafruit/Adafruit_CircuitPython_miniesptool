@@ -39,7 +39,7 @@ esptool.flash_file("esp32/ota_data_initial.bin", 0x10000,
 
 # 0x1000 bootloader/bootloader.bin
 esptool.flash_file("esp32/bootloader/bootloader.bin", 0x1000,
-                   '1bd0a84472a30a19411f6009bf12b999')
+                   '195dae16eda6ab703a45928182baa863')
 # 0x20000 at_customize.bin
 esptool.flash_file("esp32/at_customize.bin", 0x20000,
                    '9853055e077ba0c90cd70691b9d8c3d5')
@@ -74,7 +74,7 @@ esptool.flash_file("esp32/phy_init_data.bin", 0xf000,
 
 # 0x100000 esp-at.bin
 esptool.flash_file("esp32/esp-at.bin", 0x100000,
-                   'fb3fe741f31ad366d7a691bf3925a7a6')
+                   'ae256e4ab546354cd8dfa241e1056996')
 
 # 0x8000 partitions_at.bin
 esptool.flash_file("esp32/partitions_at.bin", 0x8000,
@@ -82,6 +82,3 @@ esptool.flash_file("esp32/partitions_at.bin", 0x8000,
 
 esptool.reset()
 time.sleep(0.5)
-
-
-
