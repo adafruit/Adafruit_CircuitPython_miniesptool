@@ -26,5 +26,3 @@ esptool.flash_file("esp8266/esp_init_data_default_v05.bin", 0x3FC000)
 esptool.flash_file("esp8266/esp_init_data_default_v05.bin", 0x3FE000)
 esptool.reset()
 time.sleep(0.5)
-
-
