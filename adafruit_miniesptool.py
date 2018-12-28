@@ -382,7 +382,7 @@ class miniesptool: # pylint: disable=invalid-name
         self._resetpin.value = False
         time.sleep(0.1)
         self._resetpin.value = True
-        time.sleep(0.2)
+        time.sleep(1.0)
 
     def flash_block(self, data, seq, timeout=0.1):
         """Send one block of data to program into SPI Flash memory"""
