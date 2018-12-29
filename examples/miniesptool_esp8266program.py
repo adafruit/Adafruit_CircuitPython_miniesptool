@@ -23,6 +23,6 @@ esptool.flash_file("esp8266/AT_firmware_1.6.2.0.bin", 0x0 )
 # 0x3FC000 esp_init_data_default_v05.bin
 esptool.flash_file("esp8266/esp_init_data_default_v05.bin", 0x3FC000)
 # 0x3FE000 blank.bin
-esptool.flash_file("esp8266/esp_init_data_default_v05.bin", 0x3FE000)
+esptool.flash_file("esp8266/blank.bin", 0x3FE000)
 esptool.reset()
 time.sleep(0.5)
