@@ -9,8 +9,8 @@ Introduction
     :target: https://discord.gg/nBQh6qu
     :alt: Discord
 
-.. image:: https://travis-ci.com/adafruit/Adafruit_CircuitPython_miniesptool.svg?branch=master
-    :target: https://travis-ci.com/adafruit/Adafruit_CircuitPython_miniesptool
+.. image:: https://github.com/adafruit/Adafruit_CircuitPython_miniesptool/workflows/Build%20CI/badge.svg
+    :target: https://github.com/adafruit/Adafruit_CircuitPython_miniesptool/actions/
     :alt: Build Status
 
 ROM loader for ESP chips, works with ESP8266 or ESP32.
