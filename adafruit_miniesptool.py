@@ -58,55 +58,64 @@ from digitalio import Direction
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_miniesptool.git"
 
-SYNC_PACKET = b'\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU'
+SYNC_PACKET = b"\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
 ESP32_DATAREGVALUE = 0x15122500
 ESP8266_DATAREGVALUE = 0x00062000
 
 # Commands supported by ESP8266 ROM bootloader
 # pylint: disable=bad-whitespace
-ESP_FLASH_BEGIN     = 0x02
-ESP_FLASH_DATA      = 0x03
-ESP_FLASH_END       = 0x04
-ESP_MEM_BEGIN       = 0x05
-ESP_MEM_END         = 0x06
-ESP_MEM_DATA        = 0x07
-ESP_SYNC            = 0x08
-ESP_WRITE_REG       = 0x09
-ESP_READ_REG        = 0x0a
-ESP_SPI_SET_PARAMS  = 0x0b
-ESP_SPI_ATTACH      = 0x0d
-ESP_CHANGE_BAUDRATE = 0x0f
-ESP_SPI_FLASH_MD5   = 0x13
-ESP_CHECKSUM_MAGIC  = 0xef
+ESP_FLASH_BEGIN = 0x02
+ESP_FLASH_DATA = 0x03
+ESP_FLASH_END = 0x04
+ESP_MEM_BEGIN = 0x05
+ESP_MEM_END = 0x06
+ESP_MEM_DATA = 0x07
+ESP_SYNC = 0x08
+ESP_WRITE_REG = 0x09
+ESP_READ_REG = 0x0A
+ESP_SPI_SET_PARAMS = 0x0B
+ESP_SPI_ATTACH = 0x0D
+ESP_CHANGE_BAUDRATE = 0x0F
+ESP_SPI_FLASH_MD5 = 0x13
+ESP_CHECKSUM_MAGIC = 0xEF
 
-ESP8266             = 0x8266
-ESP32               = 0x32
+ESP8266 = 0x8266
+ESP32 = 0x32
 # pylint: enable=bad-whitespace
 
 FLASH_SIZES = {
-    '512KB':0x00,
-    '256KB':0x10,
-    '1MB':0x20,
-    '2MB':0x30,
-    '4MB':0x40,
-    '2MB-c1': 0x50,
-    '4MB-c1':0x60,
-    '8MB':0x80,
-    '16MB':0x90,
+    "512KB": 0x00,
+    "256KB": 0x10,
+    "1MB": 0x20,
+    "2MB": 0x30,
+    "4MB": 0x40,
+    "2MB-c1": 0x50,
+    "4MB-c1": 0x60,
+    "8MB": 0x80,
+    "16MB": 0x90,
 }
 
-class miniesptool: # pylint: disable=invalid-name
+
+class miniesptool:  # pylint: disable=invalid-name
     """A miniature version of esptool, a programming command line tool for
     ESP8266 and ESP32 chips. This version is minimized to work on CircuitPython
     boards, so you can burn ESP firmware direct from the CPy disk drive. Handy
     when you have an ESP module wired to a board and need to upload new AT
     firmware. Its slow! Expect a few minutes when programming 1 MB flash."""
+
     FLASH_WRITE_SIZE = 0x200
-    FLASH_SECTOR_SIZE = 0x1000 # Flash sector size, minimum unit of erase.
+    FLASH_SECTOR_SIZE = 0x1000  # Flash sector size, minimum unit of erase.
     ESP_ROM_BAUD = 115200
 
-    def __init__(self, uart, gpio0_pin,  # pylint: disable=too-many-arguments
-                 reset_pin, *, flashsize, baudrate=ESP_ROM_BAUD):
+    def __init__(
+        self,
+        uart,
+        gpio0_pin,  # pylint: disable=too-many-arguments
+        reset_pin,
+        *,
+        flashsize,
+        baudrate=ESP_ROM_BAUD
+    ):
         gpio0_pin.direction = Direction.OUTPUT
         reset_pin.direction = Direction.OUTPUT
         self._gpio0pin = gpio0_pin
@@ -118,8 +127,8 @@ class miniesptool: # pylint: disable=invalid-name
         self._chipfamily = None
         self._chipname = None
         self._flashsize = flashsize
-        #self._debug_led = DigitalInOut(board.D13)
-        #self._debug_led.direction = Direction.OUTPUT
+        # self._debug_led = DigitalInOut(board.D13)
+        # self._debug_led.direction = Direction.OUTPUT
 
     @property
     def debug(self):
@@ -141,7 +150,7 @@ class miniesptool: # pylint: disable=invalid-name
     def baudrate(self, baud):
         if self._chipfamily == ESP8266:
             raise NotImplementedError("Baud rate can only change on ESP32")
-        buffer = struct.pack('<II', baud, 0)
+        buffer = struct.pack("<II", baud, 0)
         self.check_command(ESP_CHANGE_BAUDRATE, buffer)
         self._uart.baudrate = baud
         time.sleep(0.05)
@@ -155,9 +164,9 @@ class miniesptool: # pylint: disable=invalid-name
         if self._chipfamily == ESP8266:
             raise NotImplementedError("MD5 only supported on ESP32")
         self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
-        buffer = struct.pack('<IIII', offset, size, 0, 0)
+        buffer = struct.pack("<IIII", offset, size, 0, 0)
         md5 = self.check_command(ESP_SPI_FLASH_MD5, buffer, timeout=2)[1]
-        return ''.join([chr(i) for i in md5])
+        return "".join([chr(i) for i in md5])
 
     @property
     def mac_addr(self):
@@ -166,20 +175,20 @@ class miniesptool: # pylint: disable=invalid-name
         mac0, mac1, mac2, mac3 = self._efuses
         if self._chipfamily == ESP8266:
             if mac3 != 0:
-                oui = ((mac3 >> 16) & 0xff, (mac3 >> 8) & 0xff, mac3 & 0xff)
-            elif ((mac1 >> 16) & 0xff) == 0:
-                oui = (0x18, 0xfe, 0x34)
-            elif ((mac1 >> 16) & 0xff) == 1:
-                oui = (0xac, 0xd0, 0x74)
+                oui = ((mac3 >> 16) & 0xFF, (mac3 >> 8) & 0xFF, mac3 & 0xFF)
+            elif ((mac1 >> 16) & 0xFF) == 0:
+                oui = (0x18, 0xFE, 0x34)
+            elif ((mac1 >> 16) & 0xFF) == 1:
+                oui = (0xAC, 0xD0, 0x74)
             else:
                 raise RuntimeError("Couldnt determine OUI")
 
             mac_addr[0] = oui[0]
             mac_addr[1] = oui[1]
             mac_addr[2] = oui[2]
-            mac_addr[3] = (mac1>>8) & 0xff
-            mac_addr[4] = mac1 & 0xff
-            mac_addr[5] = (mac0>>24) & 0xff
+            mac_addr[3] = (mac1 >> 8) & 0xFF
+            mac_addr[4] = mac1 & 0xFF
+            mac_addr[5] = (mac0 >> 24) & 0xFF
         if self._chipfamily == ESP32:
             mac_addr[0] = mac2 >> 8 & 0xFF
             mac_addr[1] = mac2 & 0xFF
@@ -206,7 +215,7 @@ class miniesptool: # pylint: disable=invalid-name
     def chip_name(self):
         """The specific name of the chip, e.g. ESP8266EX, to the best
         of our ability to determine without a stub bootloader."""
-        self.chip_type        # pylint: disable=pointless-statement
+        self.chip_type  # pylint: disable=pointless-statement
         self._read_efuses()
 
         if self.chip_type == ESP32:
@@ -222,11 +231,11 @@ class miniesptool: # pylint: disable=invalid-name
         if self._chipfamily == ESP8266:
             base_addr = 0x3FF00050
         elif self._chipfamily == ESP32:
-            base_addr = 0x6001a000
+            base_addr = 0x6001A000
         else:
             raise RuntimeError("Don't know what chip this is")
         for i in range(4):
-            self._efuses[i] = self.read_register(base_addr + 4*i)
+            self._efuses[i] = self.read_register(base_addr + 4 * i)
 
     def get_erase_size(self, offset, size):
         """Calculate an erase size given a specific size in bytes.
@@ -251,8 +260,9 @@ class miniesptool: # pylint: disable=invalid-name
         if self._chipfamily == ESP32:
             self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
             # We are harcoded for 4MB flash on ESP32
-            buffer = struct.pack('<IIIIII', 0, self._flashsize,
-                                 0x10000, 4096, 256, 0xFFFF)
+            buffer = struct.pack(
+                "<IIIIII", 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF
+            )
             self.check_command(ESP_SPI_SET_PARAMS, buffer)
 
         num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
@@ -262,18 +272,25 @@ class miniesptool: # pylint: disable=invalid-name
             erase_size = size
         timeout = 5
         stamp = time.monotonic()
-        buffer = struct.pack('<IIII', erase_size, num_blocks,
-                             self.FLASH_WRITE_SIZE, offset)
-        print("Erase size %d, num_blocks %d, size %d, offset 0x%04x" %
-              (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset))
+        buffer = struct.pack(
+            "<IIII", erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset
+        )
+        print(
+            "Erase size %d, num_blocks %d, size %d, offset 0x%04x"
+            % (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
+        )
 
         self.check_command(ESP_FLASH_BEGIN, buffer, timeout=timeout)
         if size != 0:
-            print("Took %.2fs to erase %d flash blocks" %
-                  (time.monotonic()-stamp, num_blocks))
+            print(
+                "Took %.2fs to erase %d flash blocks"
+                % (time.monotonic() - stamp, num_blocks)
+            )
         return num_blocks
 
-    def check_command(self, opcode, buffer, checksum=0, timeout=0.1): # pylint: disable=unused-argument
+    def check_command(
+        self, opcode, buffer, checksum=0, timeout=0.1
+    ):  # pylint: disable=unused-argument
         """Send a command packet, check that the command succeeded and
         return a tuple with the value and data.
         See the ESP Serial Protocol for more details on what value/data are"""
@@ -290,9 +307,9 @@ class miniesptool: # pylint: disable=invalid-name
             raise RuntimeError("Didn't get enough status bytes")
         status = data[-status_len:]
         data = data[:-status_len]
-        #print("status", status)
-        #print("value", value)
-        #print("data", data)
+        # print("status", status)
+        # print("value", value)
+        # print("data", data)
         if status[0] != 0:
             raise RuntimeError("Command failure error code 0x%02x" % status[1])
         return (value, data)
@@ -302,16 +319,16 @@ class miniesptool: # pylint: disable=invalid-name
         does not check response"""
         self._uart.reset_input_buffer()
 
-        #self._debug_led.value = True
+        # self._debug_led.value = True
         checksum = 0
         if opcode == 0x03:
             checksum = self.checksum(buffer[16:])
-        #self._debug_led.value = False
+        # self._debug_led.value = False
 
-        packet = [0xC0, 0x00] # direction
+        packet = [0xC0, 0x00]  # direction
         packet.append(opcode)
-        packet += [x for x in struct.pack('H', len(buffer))]
-        packet += [x for x in self.slip_encode(struct.pack('I', checksum))]
+        packet += [x for x in struct.pack("H", len(buffer))]
+        packet += [x for x in self.slip_encode(struct.pack("I", checksum))]
         packet += [x for x in self.slip_encode(buffer)]
         packet += [0xC0]
         if self._debug:
@@ -319,7 +336,7 @@ class miniesptool: # pylint: disable=invalid-name
             print("Writing:", bytearray(packet))
         self._uart.write(bytearray(packet))
 
-    def get_response(self, opcode, timeout=0.1): # pylint: disable=too-many-branches
+    def get_response(self, opcode, timeout=0.1):  # pylint: disable=too-many-branches
         """Read response data and decodes the slip packet, then parses
         out the value/data and returns as a tuple of (value, data) where
         each is a list of bytes"""
@@ -330,20 +347,20 @@ class miniesptool: # pylint: disable=invalid-name
         escaped_byte = False
         while (time.monotonic() - stamp) < timeout:
             if self._uart.in_waiting > 0:
-                c = self._uart.read(1) # pylint: disable=invalid-name
-                if c == b'\xDB':
+                c = self._uart.read(1)  # pylint: disable=invalid-name
+                if c == b"\xDB":
                     escaped_byte = True
                 elif escaped_byte:
-                    if c == b'\xDD':
-                        reply += b'\xDC'
-                    elif c == b'\xDC':
-                        reply += b'\xC0'
+                    if c == b"\xDD":
+                        reply += b"\xDC"
+                    elif c == b"\xDC":
+                        reply += b"\xC0"
                     else:
                         reply += [0xDB, c]
                     escaped_byte = False
                 else:
                     reply += c
-            if reply and reply[0] != 0xc0:
+            if reply and reply[0] != 0xC0:
                 # packets must start with 0xC0
                 del reply[0]
             if len(reply) > 1 and reply[1] != 0x01:
@@ -363,17 +380,16 @@ class miniesptool: # pylint: disable=invalid-name
         value = reply[5:9]
         data = reply[9:-1]
         if self._debug:
-            print("value:", [hex(i) for i in value],
-                  "data:", [hex(i) for i in data])
+            print("value:", [hex(i) for i in value], "data:", [hex(i) for i in data])
         return (value, data)
 
     def read_register(self, reg):
         """Read a register within the ESP chip RAM, returns a 4-element list"""
         if self._debug:
             print("Reading register 0x%08x" % reg)
-        packet = struct.pack('I', reg)
+        packet = struct.pack("I", reg)
         register = self.check_command(ESP_READ_REG, packet)[0]
-        return struct.unpack('I', bytearray(register))[0]
+        return struct.unpack("I", bytearray(register))[0]
 
     def reset(self, program_mode=False):
         """Perform a hard-reset into ROM bootloader using gpio0 and reset"""
@@ -386,10 +402,12 @@ class miniesptool: # pylint: disable=invalid-name
 
     def flash_block(self, data, seq, timeout=0.1):
         """Send one block of data to program into SPI Flash memory"""
-        self.check_command(ESP_FLASH_DATA,
-                           struct.pack('<IIII', len(data), seq, 0, 0) + data,
-                           self.checksum(data),
-                           timeout=timeout)
+        self.check_command(
+            ESP_FLASH_DATA,
+            struct.pack("<IIII", len(data), seq, 0, 0) + data,
+            self.checksum(data),
+            timeout=timeout,
+        )
 
     def flash_file(self, filename, offset=0, md5=None):
         """Program a full, uncompressed binary file into SPI Flash at
@@ -405,17 +423,22 @@ class miniesptool: # pylint: disable=invalid-name
             address = offset
             stamp = time.monotonic()
             while filesize - file.tell() > 0:
-                print('\rWriting at 0x%08x... (%d %%)' %
-                      (address + seq * self.FLASH_WRITE_SIZE, 100 * (seq + 1) // blocks), end='')
+                print(
+                    "\rWriting at 0x%08x... (%d %%)"
+                    % (
+                        address + seq * self.FLASH_WRITE_SIZE,
+                        100 * (seq + 1) // blocks,
+                    ),
+                    end="",
+                )
                 block = file.read(self.FLASH_WRITE_SIZE)
                 # Pad the last block
-                block = block + b'\xff' * (self.FLASH_WRITE_SIZE - len(block))
-                #print(block)
+                block = block + b"\xff" * (self.FLASH_WRITE_SIZE - len(block))
+                # print(block)
                 self.flash_block(block, seq, timeout=2)
                 seq += 1
                 written += len(block)
-            print("Took %.2fs to write %d bytes" %
-                  (time.monotonic()-stamp, filesize))
+            print("Took %.2fs to write %d bytes" % (time.monotonic() - stamp, filesize))
             if md5:
                 print("Verifying MD5sum ", md5)
                 calcd = self.md5(offset, filesize)
@@ -427,7 +450,9 @@ class miniesptool: # pylint: disable=invalid-name
         any hardware resetting"""
         self.send_command(0x08, SYNC_PACKET)
         for _ in range(8):
-            reply, data = self.get_response(0x08, 0.1) # pylint: disable=unused-variable
+            reply, data = self.get_response(
+                0x08, 0.1
+            )  # pylint: disable=unused-variable
             if not data:
                 continue
             if len(data) > 1 and data[0] == 0 and data[1] == 0:
@@ -460,10 +485,10 @@ class miniesptool: # pylint: disable=invalid-name
         0xdb is replaced with 0xdb 0xdd and 0xc0 is replaced with 0xdb 0xdc"""
         encoded = []
         for b in buffer:
-            if b == 0xdb:
-                encoded += [0xdb, 0xdd]
-            elif b == 0xc0:
-                encoded += [0xdb, 0xdc]
+            if b == 0xDB:
+                encoded += [0xDB, 0xDD]
+            elif b == 0xC0:
+                encoded += [0xDB, 0xDC]
             else:
                 encoded += [b]
         return bytearray(encoded)
