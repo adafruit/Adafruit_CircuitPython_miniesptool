@@ -220,7 +220,7 @@ class miniesptool:  # pylint: disable=invalid-name
 
         if self.chip_type == ESP32:
             return "ESP32"
-        elif self.chip_type == ESP8266:
+        if self.chip_type == ESP8266:
             if self._efuses[0] & (1 << 4) or self._efuses[2] & (1 << 16):
                 return "ESP8285"
             return "ESP8266EX"
@@ -327,9 +327,9 @@ class miniesptool:  # pylint: disable=invalid-name
 
         packet = [0xC0, 0x00]  # direction
         packet.append(opcode)
-        packet += [x for x in struct.pack("H", len(buffer))]
-        packet += [x for x in self.slip_encode(struct.pack("I", checksum))]
-        packet += [x for x in self.slip_encode(buffer)]
+        packet.extend(struct.pack("H", len(buffer)))
+        packet.extend(self.slip_encode(struct.pack("I", checksum)))
+        packet.extend(self.slip_encode(buffer))
         packet += [0xC0]
         if self._debug:
             print([hex(x) for x in packet])
@@ -450,9 +450,9 @@ class miniesptool:  # pylint: disable=invalid-name
         any hardware resetting"""
         self.send_command(0x08, SYNC_PACKET)
         for _ in range(8):
-            reply, data = self.get_response(
+            reply, data = self.get_response(  # pylint: disable=unused-variable
                 0x08, 0.1
-            )  # pylint: disable=unused-variable
+            )
             if not data:
                 continue
             if len(data) > 1 and data[0] == 0 and data[1] == 0:
