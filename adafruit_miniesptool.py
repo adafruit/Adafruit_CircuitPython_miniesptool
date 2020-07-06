@@ -259,7 +259,7 @@ class miniesptool:  # pylint: disable=invalid-name
         number of blocks requred."""
         if self._chipfamily == ESP32:
             self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
-            # We are harcoded for 4MB flash on ESP32
+            # We are hardcoded for 4MB flash on ESP32
             buffer = struct.pack(
                 "<IIIIII", 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF
             )
@@ -270,7 +270,7 @@ class miniesptool:  # pylint: disable=invalid-name
             erase_size = self.get_erase_size(offset, size)
         else:
             erase_size = size
-        timeout = 5
+        timeout = 13
         stamp = time.monotonic()
         buffer = struct.pack(
             "<IIII", erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset
@@ -303,7 +303,7 @@ class miniesptool:  # pylint: disable=invalid-name
         else:
             if len(data) in (2, 4):
                 status_len = len(data)
-        if len(data) < status_len:
+        if data is None or len(data) < status_len:
             raise RuntimeError("Didn't get enough status bytes")
         status = data[-status_len:]
         data = data[:-status_len]
@@ -372,7 +372,10 @@ class miniesptool:  # pylint: disable=invalid-name
                 packet_length = reply[3] + (reply[4] << 8)
             if len(reply) == packet_length + 10:
                 break
-        else:
+        # Check to see if we have a complete packet. If not, we timed out.
+        if len(reply) != packet_length + 10:
+            if self._debug:
+                print("Timed out after {} seconds".format(timeout))
             return (None, None)
         if self._debug:
             print("Packet:", [hex(i) for i in reply])
@@ -464,7 +467,7 @@ class miniesptool:  # pylint: disable=invalid-name
         ESP ROM bootloader, we will retry a few times"""
         self.reset(True)
 
-        for _ in range(3):
+        for _ in range(5):
             if self._sync():
                 time.sleep(0.1)
                 return True
