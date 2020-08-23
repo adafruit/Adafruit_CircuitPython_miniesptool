@@ -63,7 +63,6 @@ ESP32_DATAREGVALUE = 0x15122500
 ESP8266_DATAREGVALUE = 0x00062000
 
 # Commands supported by ESP8266 ROM bootloader
-# pylint: disable=bad-whitespace
 ESP_FLASH_BEGIN = 0x02
 ESP_FLASH_DATA = 0x03
 ESP_FLASH_END = 0x04
@@ -81,7 +80,6 @@ ESP_CHECKSUM_MAGIC = 0xEF
 
 ESP8266 = 0x8266
 ESP32 = 0x32
-# pylint: enable=bad-whitespace
 
 FLASH_SIZES = {
     "512KB": 0x00,
