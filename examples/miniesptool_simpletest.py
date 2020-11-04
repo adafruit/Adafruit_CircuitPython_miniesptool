@@ -27,7 +27,7 @@ esptool.baudrate = 912600
 print("MAC ADDR: ", [hex(i) for i in esptool.mac_addr])
 
 # Note: Make sure to use the LATEST nina-fw binary release!
-esptool.flash_file("NINA_W102-1.6.1.bin", 0x0, "0326db53e579f8a4293feac70d00f6bb")
+esptool.flash_file("NINA_W102-1.7.1.bin", 0x0, "dc81f0433dfba6de33c78b5c5911261d")
 
 esptool.reset()
 time.sleep(0.5)
