@@ -350,7 +350,7 @@ class miniesptool:  # pylint: disable=invalid-name
                     escaped_byte = True
                 elif escaped_byte:
                     if c == b"\xDD":
-                        reply += b"\xDC"
+                        reply += b"\xDB"
                     elif c == b"\xDC":
                         reply += b"\xC0"
                     else:
