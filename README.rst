@@ -65,6 +65,11 @@ Usage Example
 
 Check the examples folder for demo sketches to upload firmware to ESP8266 and ESP32
 
+Documentation
+=============
+
+API documentation for this library can be found on `Read the Docs <https://circuitpython.readthedocs.io/projects/miniesptool/en/latest/>`_.
+
 Contributing
 ============
 
