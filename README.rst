@@ -2,7 +2,7 @@ Introduction
 ============
 
 .. image:: https://readthedocs.org/projects/adafruit-circuitpython-miniesptool/badge/?version=latest
-    :target: https://circuitpython.readthedocs.io/projects/miniesptool/en/latest/
+    :target: https://docs.circuitpython.org/projects/miniesptool/en/latest/
     :alt: Documentation Status
 
 .. image:: https://img.shields.io/discord/327254708534116352.svg
@@ -68,7 +68,7 @@ Check the examples folder for demo sketches to upload firmware to ESP8266 and ES
 Documentation
 =============
 
-API documentation for this library can be found on `Read the Docs <https://circuitpython.readthedocs.io/projects/miniesptool/en/latest/>`_.
+API documentation for this library can be found on `Read the Docs <https://docs.circuitpython.org/projects/miniesptool/en/latest/>`_.
 
 Contributing
 ============
