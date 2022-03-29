@@ -458,7 +458,7 @@ class miniesptool:  # pylint: disable=invalid-name
 
     @staticmethod
     def checksum(data, state=ESP_CHECKSUM_MAGIC):
-        """ Calculate checksum of a blob, as it is defined by the ROM """
+        """Calculate checksum of a blob, as it is defined by the ROM"""
         for b in data:
             state ^= b
         return state
