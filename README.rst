@@ -13,6 +13,10 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_CircuitPython_miniesptool/actions/
     :alt: Build Status
 
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Code Style: Black
+
 ROM loader for ESP chips, works with ESP8266 or ESP32.
 This is a 'no-stub' loader, so you can't read MD5 or firmware back on ESP8266.
 
