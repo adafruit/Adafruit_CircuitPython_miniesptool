@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 import time
+
 import board
 import busio
+from digitalio import DigitalInOut, Direction
 
-from digitalio import DigitalInOut, Direction  # pylint: disable=unused-import
 import adafruit_miniesptool
 
 print("ESP32 mini prog")
@@ -25,9 +26,7 @@ esp_cts.direction = Direction.OUTPUT
 esp_cts.value = False
 """
 
-esptool = adafruit_miniesptool.miniesptool(
-    uart, gpio0pin, resetpin, flashsize=4 * 1024 * 1024
-)
+esptool = adafruit_miniesptool.miniesptool(uart, gpio0pin, resetpin, flashsize=4 * 1024 * 1024)
 esptool.debug = False
 
 esptool.sync()
@@ -39,18 +38,12 @@ esptool.baudrate = 912600
 print("MAC ADDR: ", [hex(i) for i in esptool.mac_addr])
 
 # 0x10000 ota_data_initial.bin
-esptool.flash_file(
-    "esp32/ota_data_initial.bin", 0x10000, "84d04c9d6cc8ef35bf825d51a5277699"
-)
+esptool.flash_file("esp32/ota_data_initial.bin", 0x10000, "84d04c9d6cc8ef35bf825d51a5277699")
 
 # 0x1000 bootloader/bootloader.bin
-esptool.flash_file(
-    "esp32/bootloader/bootloader.bin", 0x1000, "894e5f067a44773ac1ae987a14e85787"
-)
+esptool.flash_file("esp32/bootloader/bootloader.bin", 0x1000, "894e5f067a44773ac1ae987a14e85787")
 # 0x20000 at_customize.bin
-esptool.flash_file(
-    "esp32/at_customize.bin", 0x20000, "9853055e077ba0c90cd70691b9d8c3d5"
-)
+esptool.flash_file("esp32/at_customize.bin", 0x20000, "9853055e077ba0c90cd70691b9d8c3d5")
 
 # 0x24000 customized_partitions/server_cert.bin
 esptool.flash_file(
@@ -95,17 +88,13 @@ esptool.flash_file(
 )
 
 #  0xf000 phy_init_data.bin
-esptool.flash_file(
-    "esp32/phy_init_data.bin", 0xF000, "bc9854aa3687ca73e25d213d20113b23"
-)
+esptool.flash_file("esp32/phy_init_data.bin", 0xF000, "bc9854aa3687ca73e25d213d20113b23")
 
 # 0x100000 esp-at.bin
 esptool.flash_file("esp32/esp-at.bin", 0x100000, "7018a1b4c8a5c108377ecda7632b899c")
 
 # 0x8000 partitions_at.bin
-esptool.flash_file(
-    "esp32/partitions_at.bin", 0x8000, "d3d1508993d61aedf17280140fc22a6b"
-)
+esptool.flash_file("esp32/partitions_at.bin", 0x8000, "d3d1508993d61aedf17280140fc22a6b")
 
 esptool.reset()
 time.sleep(0.5)

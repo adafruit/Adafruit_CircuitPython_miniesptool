@@ -34,8 +34,9 @@ Implementation Notes
 """
 
 import os
-import time
 import struct
+import time
+
 from digitalio import Direction
 
 __version__ = "0.0.0+auto.0"
@@ -77,7 +78,7 @@ FLASH_SIZES = {
 }
 
 
-class miniesptool:  # pylint: disable=invalid-name
+class miniesptool:
     """A miniature version of esptool, a programming command line tool for
     ESP8266 and ESP32 chips. This version is minimized to work on CircuitPython
     boards, so you can burn ESP firmware direct from the CPy disk drive. Handy
@@ -91,11 +92,11 @@ class miniesptool:  # pylint: disable=invalid-name
     def __init__(
         self,
         uart,
-        gpio0_pin,  # pylint: disable=too-many-arguments
+        gpio0_pin,
         reset_pin,
         *,
         flashsize,
-        baudrate=ESP_ROM_BAUD
+        baudrate=ESP_ROM_BAUD,
     ):
         gpio0_pin.direction = Direction.OUTPUT
         reset_pin.direction = Direction.OUTPUT
@@ -196,7 +197,7 @@ class miniesptool:  # pylint: disable=invalid-name
     def chip_name(self):
         """The specific name of the chip, e.g. ESP8266EX, to the best
         of our ability to determine without a stub bootloader."""
-        self.chip_type  # pylint: disable=pointless-statement
+        self.chip_type
         self._read_efuses()
 
         if self.chip_type == ESP32:
@@ -241,9 +242,7 @@ class miniesptool:  # pylint: disable=invalid-name
         if self._chipfamily == ESP32:
             self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
             # We are hardcoded for 4MB flash on ESP32
-            buffer = struct.pack(
-                "<IIIIII", 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF
-            )
+            buffer = struct.pack("<IIIIII", 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF)
             self.check_command(ESP_SPI_SET_PARAMS, buffer)
 
         num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
@@ -253,9 +252,7 @@ class miniesptool:  # pylint: disable=invalid-name
             erase_size = size
         timeout = 13
         stamp = time.monotonic()
-        buffer = struct.pack(
-            "<IIII", erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset
-        )
+        buffer = struct.pack("<IIII", erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
         print(
             "Erase size %d, num_blocks %d, size %d, offset 0x%04x"
             % (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
@@ -263,15 +260,10 @@ class miniesptool:  # pylint: disable=invalid-name
 
         self.check_command(ESP_FLASH_BEGIN, buffer, timeout=timeout)
         if size != 0:
-            print(
-                "Took %.2fs to erase %d flash blocks"
-                % (time.monotonic() - stamp, num_blocks)
-            )
+            print("Took %.2fs to erase %d flash blocks" % (time.monotonic() - stamp, num_blocks))
         return num_blocks
 
-    def check_command(
-        self, opcode, buffer, checksum=0, timeout=0.1
-    ):  # pylint: disable=unused-argument
+    def check_command(self, opcode, buffer, checksum=0, timeout=0.1):
         """Send a command packet, check that the command succeeded and
         return a tuple with the value and data.
         See the ESP Serial Protocol for more details on what value/data are"""
@@ -281,9 +273,8 @@ class miniesptool:  # pylint: disable=invalid-name
             status_len = 2
         elif self._chipfamily == ESP32:
             status_len = 4
-        else:
-            if len(data) in (2, 4):
-                status_len = len(data)
+        elif len(data) in {2, 4}:
+            status_len = len(data)
         if data is None or len(data) < status_len:
             raise RuntimeError("Didn't get enough status bytes")
         status = data[-status_len:]
@@ -317,7 +308,7 @@ class miniesptool:  # pylint: disable=invalid-name
             print("Writing:", bytearray(packet))
         self._uart.write(bytearray(packet))
 
-    def get_response(self, opcode, timeout=0.1):  # pylint: disable=too-many-branches
+    def get_response(self, opcode, timeout=0.1):
         """Read response data and decodes the slip packet, then parses
         out the value/data and returns as a tuple of (value, data) where
         each is a list of bytes"""
@@ -328,14 +319,14 @@ class miniesptool:  # pylint: disable=invalid-name
         escaped_byte = False
         while (time.monotonic() - stamp) < timeout:
             if self._uart.in_waiting > 0:
-                c = self._uart.read(1)  # pylint: disable=invalid-name
-                if c == b"\xDB":
+                c = self._uart.read(1)
+                if c == b"\xdb":
                     escaped_byte = True
                 elif escaped_byte:
-                    if c == b"\xDD":
-                        reply += b"\xDB"
-                    elif c == b"\xDC":
-                        reply += b"\xC0"
+                    if c == b"\xdd":
+                        reply += b"\xdb"
+                    elif c == b"\xdc":
+                        reply += b"\xc0"
                     else:
                         reply += [0xDB, c]
                     escaped_byte = False
@@ -356,7 +347,7 @@ class miniesptool:  # pylint: disable=invalid-name
         # Check to see if we have a complete packet. If not, we timed out.
         if len(reply) != packet_length + 10:
             if self._debug:
-                print("Timed out after {} seconds".format(timeout))
+                print(f"Timed out after {timeout} seconds")
             return (None, None)
         if self._debug:
             print("Packet:", [hex(i) for i in reply])
@@ -434,7 +425,7 @@ class miniesptool:  # pylint: disable=invalid-name
         any hardware resetting"""
         self.send_command(0x08, SYNC_PACKET)
         for _ in range(8):
-            reply, data = self.get_response(  # pylint: disable=unused-variable
+            reply, data = self.get_response(  # noqa: F841
                 0x08, 0.1
             )
             if not data:

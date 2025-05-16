@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 import time
+
 import board
 import busio
 from digitalio import DigitalInOut
+
 import adafruit_miniesptool
 
 print("ESP8266 mini prog")

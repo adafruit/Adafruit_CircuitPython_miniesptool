@@ -13,9 +13,9 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_CircuitPython_miniesptool/actions/
     :alt: Build Status
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
-    :alt: Code Style: Black
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Code Style: Ruff
 
 ROM loader for ESP chips, works with ESP8266 or ESP32.
 This is a 'no-stub' loader, so you can't read MD5 or firmware back on ESP8266.
