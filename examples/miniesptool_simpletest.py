@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 import time
+
 import board
 import busio
-from digitalio import DigitalInOut, Direction  # pylint: disable=unused-import
+from digitalio import DigitalInOut, Direction
+
 import adafruit_miniesptool
 
 print("ESP32 Nina-FW")
