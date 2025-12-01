@@ -17,7 +17,7 @@ Introduction
     :target: https://github.com/astral-sh/ruff
     :alt: Code Style: Ruff
 
-ROM loader for ESP chips, works with ESP8266 or ESP32.
+ROM loader for ESP chips, works with ESP8266, ESP32, or ESP32-C6.
 This is a 'no-stub' loader, so you can't read MD5 or firmware back on ESP8266.
 
 See this document for protocol we're implementing:
@@ -67,7 +67,7 @@ To install in a virtual environment in your current project:
 Usage Example
 =============
 
-Check the examples folder for demo sketches to upload firmware to ESP8266 and ESP32
+Check the examples folder for demo sketches to upload firmware to ESP8266, ESP32, and ESP32-C6.
 
 Documentation
 =============

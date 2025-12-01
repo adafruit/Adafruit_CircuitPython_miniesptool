@@ -45,6 +45,12 @@ __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_miniesptool.git"
 SYNC_PACKET = b"\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU"
 ESP32_DATAREGVALUE = 0x15122500
 ESP8266_DATAREGVALUE = 0x00062000
+ESP32_C6_DATAREGVALUE = 0x2CE0806F
+ESP8266_ESP32_REG_DATA = 0x60000078
+ESP32_C6_REG_DATA = (
+    0x40001000  # from https://github.com/espressif/esptool-js/blob/main/src/esploader.ts
+)
+
 
 # Commands supported by ESP8266 ROM bootloader
 ESP_FLASH_BEGIN = 0x02
@@ -64,6 +70,7 @@ ESP_CHECKSUM_MAGIC = 0xEF
 
 ESP8266 = 0x8266
 ESP32 = 0x32
+ESP32C6 = 0x326
 
 FLASH_SIZES = {
     "512KB": 0x00,
@@ -86,6 +93,7 @@ class miniesptool:
     firmware. Its slow! Expect a few minutes when programming 1 MB flash."""
 
     FLASH_WRITE_SIZE = 0x200
+    FLASH_WRITE_SIZE_C6 = 0x400
     FLASH_SECTOR_SIZE = 0x1000  # Flash sector size, minimum unit of erase.
     ESP_ROM_BAUD = 115200
 
@@ -109,6 +117,7 @@ class miniesptool:
         self._chipfamily = None
         self._chipname = None
         self._flashsize = flashsize
+        self._flash_write_size = self.FLASH_WRITE_SIZE
         # self._debug_led = DigitalInOut(board.D13)
         # self._debug_led.direction = Direction.OUTPUT
 
@@ -178,19 +187,30 @@ class miniesptool:
             mac_addr[3] = mac1 >> 16 & 0xFF
             mac_addr[4] = mac1 >> 8 & 0xFF
             mac_addr[5] = mac1 & 0xFF
+        if self._chipfamily == ESP32C6:
+            mac_addr[0] = (mac1 >> 8) & 0xFF
+            mac_addr[1] = mac1 & 0xFF
+            mac_addr[2] = (mac0 >> 24) & 0xFF
+            mac_addr[3] = (mac0 >> 16) & 0xFF
+            mac_addr[4] = (mac0 >> 8) & 0xFF
+            mac_addr[5] = mac0 & 0xFF
         return mac_addr
 
     @property
     def chip_type(self):
-        """ESP32 or ESP8266 based on which chip type we're talking to"""
+        """Assigns ESP32, ESP32-C6, or ESP8266 based on which chip type we're talking to"""
         if not self._chipfamily:
-            datareg = self.read_register(0x60000078)
+            # Check for ESP32 or ESP8266
+            datareg = self.read_register(ESP8266_ESP32_REG_DATA)
             if datareg == ESP32_DATAREGVALUE:
                 self._chipfamily = ESP32
             elif datareg == ESP8266_DATAREGVALUE:
                 self._chipfamily = ESP8266
             else:
-                raise RuntimeError("Unknown Chip")
+                # Check for ESP32-C6
+                datareg = self.read_register(ESP32_C6_REG_DATA)
+                if datareg == ESP32_C6_DATAREGVALUE:
+                    self._chipfamily = ESP32C6
         return self._chipfamily
 
     @property
@@ -206,14 +226,21 @@ class miniesptool:
             if self._efuses[0] & (1 << 4) or self._efuses[2] & (1 << 16):
                 return "ESP8285"
             return "ESP8266EX"
+        if self.chip_type == ESP32C6:
+            self._flash_write_size = self.FLASH_WRITE_SIZE_C6
+            return "ESP32-C6"
         return None
 
     def _read_efuses(self):
         """Read the OTP data for this chip and store into _efuses array"""
+        # Attempt to read MAC from efuse registers
         if self._chipfamily == ESP8266:
             base_addr = 0x3FF00050
         elif self._chipfamily == ESP32:
             base_addr = 0x6001A000
+        elif self._chipfamily == ESP32C6:
+            # from https://github.com/espressif/esptool-js/blob/main/src/targets/esp32c6.ts
+            base_addr = 0x600B0844
         else:
             raise RuntimeError("Don't know what chip this is")
         for i in range(4):
@@ -239,25 +266,30 @@ class miniesptool:
     def flash_begin(self, *, size=0, offset=0):
         """Prepare for flashing by attaching SPI chip and erasing the
         number of blocks requred."""
-        if self._chipfamily == ESP32:
+        if self._chipfamily in {ESP32, ESP32C6}:
             self.check_command(ESP_SPI_ATTACH, bytes([0] * 8))
             # We are hardcoded for 4MB flash on ESP32
             buffer = struct.pack("<IIIIII", 0, self._flashsize, 0x10000, 4096, 256, 0xFFFF)
             self.check_command(ESP_SPI_SET_PARAMS, buffer)
 
-        num_blocks = (size + self.FLASH_WRITE_SIZE - 1) // self.FLASH_WRITE_SIZE
+        num_blocks = (size + self._flash_write_size - 1) // self._flash_write_size
         if self._chipfamily == ESP8266:
             erase_size = self.get_erase_size(offset, size)
         else:
             erase_size = size
         timeout = 13
         stamp = time.monotonic()
-        buffer = struct.pack("<IIII", erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
+        if self._chipfamily == ESP32C6:
+            # ESP32-C6 requires a 5th parameter (the encryption flag)
+            buffer = struct.pack(
+                "<IIIII", erase_size, num_blocks, self._flash_write_size, offset, 0
+            )
+        else:
+            buffer = struct.pack("<IIII", erase_size, num_blocks, self._flash_write_size, offset)
         print(
             "Erase size %d, num_blocks %d, size %d, offset 0x%04x"
-            % (erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
+            % (erase_size, num_blocks, self._flash_write_size, offset)
         )
-
         self.check_command(ESP_FLASH_BEGIN, buffer, timeout=timeout)
         if size != 0:
             print("Took %.2fs to erase %d flash blocks" % (time.monotonic() - stamp, num_blocks))
@@ -397,18 +429,22 @@ class miniesptool:
             written = 0
             address = offset
             stamp = time.monotonic()
+            last_print = time.monotonic()
             while filesize - file.tell() > 0:
-                print(
-                    "\rWriting at 0x%08x... (%d %%)"
-                    % (
-                        address + seq * self.FLASH_WRITE_SIZE,
-                        100 * (seq + 1) // blocks,
-                    ),
-                    end="",
-                )
-                block = file.read(self.FLASH_WRITE_SIZE)
+                # Only print progress every 10 seconds
+                if time.monotonic() - last_print >= 10:
+                    print(
+                        "\rWriting at 0x%08x... (%d %%)"
+                        % (
+                            address + seq * self._flash_write_size,
+                            100 * (seq + 1) // blocks,
+                        ),
+                        end="",
+                    )
+                    last_print = time.monotonic()
+                block = file.read(self._flash_write_size)
                 # Pad the last block
-                block = block + b"\xff" * (self.FLASH_WRITE_SIZE - len(block))
+                block = block + b"\xff" * (self._flash_write_size - len(block))
                 # print(block)
                 self.flash_block(block, seq, timeout=2)
                 seq += 1
@@ -425,9 +461,7 @@ class miniesptool:
         any hardware resetting"""
         self.send_command(0x08, SYNC_PACKET)
         for _ in range(8):
-            reply, data = self.get_response(  # noqa: F841
-                0x08, 0.1
-            )
+            reply, data = self.get_response(0x08, 0.1)  # noqa: F841
             if not data:
                 continue
             if len(data) > 1 and data[0] == 0 and data[1] == 0:
