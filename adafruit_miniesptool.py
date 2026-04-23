@@ -256,8 +256,7 @@ class miniesptool:
         start_sector = offset // sector_size
 
         head_sectors = sectors_per_block - (start_sector % sectors_per_block)
-        if num_sectors < head_sectors:
-            head_sectors = num_sectors
+        head_sectors = min(head_sectors, num_sectors)
 
         if num_sectors < 2 * head_sectors:
             return (num_sectors + 1) // 2 * sector_size
@@ -287,12 +286,12 @@ class miniesptool:
         else:
             buffer = struct.pack("<IIII", erase_size, num_blocks, self._flash_write_size, offset)
         print(
-            "Erase size %d, num_blocks %d, size %d, offset 0x%04x"
-            % (erase_size, num_blocks, self._flash_write_size, offset)
+            f"Erase size {erase_size}, num_blocks {num_blocks}, "
+            + f"size {self._flash_write_size}, offset 0x{offset:04x}"
         )
         self.check_command(ESP_FLASH_BEGIN, buffer, timeout=timeout)
         if size != 0:
-            print("Took %.2fs to erase %d flash blocks" % (time.monotonic() - stamp, num_blocks))
+            print(f"Took {time.monotonic() - stamp:.2f}s to erase {num_blocks} flash blocks")
         return num_blocks
 
     def check_command(self, opcode, buffer, checksum=0, timeout=0.1):
@@ -315,7 +314,7 @@ class miniesptool:
         # print("value", value)
         # print("data", data)
         if status[0] != 0:
-            raise RuntimeError("Command failure error code 0x%02x" % status[1])
+            raise RuntimeError(f"Command failure error code 0x{status[1]:02x}")
         return (value, data)
 
     def send_command(self, opcode, buffer):
@@ -393,7 +392,7 @@ class miniesptool:
     def read_register(self, reg):
         """Read a register within the ESP chip RAM, returns a 4-element list"""
         if self._debug:
-            print("Reading register 0x%08x" % reg)
+            print(f"Reading register 0x{reg:08x}")
         packet = struct.pack("I", reg)
         register = self.check_command(ESP_READ_REG, packet)[0]
         return struct.unpack("I", bytearray(register))[0]
@@ -434,22 +433,19 @@ class miniesptool:
                 # Only print progress every 10 seconds
                 if time.monotonic() - last_print >= 10:
                     print(
-                        "\rWriting at 0x%08x... (%d %%)"
-                        % (
-                            address + seq * self._flash_write_size,
-                            100 * (seq + 1) // blocks,
-                        ),
+                        f"\rWriting at 0x{address + seq * self._flash_write_size:08x}... "
+                        + f"({100 * (seq + 1) // blocks} %)",
                         end="",
                     )
                     last_print = time.monotonic()
                 block = file.read(self._flash_write_size)
                 # Pad the last block
-                block = block + b"\xff" * (self._flash_write_size - len(block))
+                block += b"\xff" * (self._flash_write_size - len(block))
                 # print(block)
                 self.flash_block(block, seq, timeout=2)
                 seq += 1
                 written += len(block)
-            print("Took %.2fs to write %d bytes" % (time.monotonic() - stamp, filesize))
+            print(f"Took {time.monotonic() - stamp:.2f}s to write {filesize} bytes")
             if md5:
                 print("Verifying MD5sum ", md5)
                 calcd = self.md5(offset, filesize)
